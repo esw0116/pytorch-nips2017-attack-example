@@ -1,5 +1,4 @@
 """Pytorch Carlini and Wagner L2 attack runner.
-
 """
 
 from __future__ import absolute_import

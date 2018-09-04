@@ -10,14 +10,9 @@
 #   MAX_EPSILON - maximum allowed L_{\infty} norm of adversarial perturbation
 #
 
-INPUT_DIR=$1
-OUTPUT_DIR=$2
-MAX_EPSILON=$3
-
 python run_attack_iter.py \
-  --input_dir="${INPUT_DIR}" \
-  --output_dir="${OUTPUT_DIR}" \
-  --max_epsilon="${MAX_EPSILON}" \
-  --targeted \
-  --checkpoint_path=inception_v3_google-1a9a5a14.pth
+  --input_dir="../../Dataset/NIPSAA/images" \
+  --output_dir="./outputs" \
+  --max_epsilon="10" \
+  --checkpoint_path="./inception_v3_google-1a9a5a14.pth"
 

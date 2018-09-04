@@ -21,7 +21,7 @@ class LeNormalize(object):
 
 def default_inception_transform(img_size):
     tf = transforms.Compose([
-        transforms.Scale(img_size),
+        transforms.Resize(img_size),
         transforms.CenterCrop(img_size),
         transforms.ToTensor(),
         LeNormalize(),

@@ -17,6 +17,7 @@ from dataset import Dataset, default_inception_transform
 
 def run_attack(args, attack):
     assert args.input_dir
+    device = 'cuda' if not args.no_gpu else 'cpu'
 
     if args.targeted:
         dataset = Dataset(
@@ -33,9 +34,7 @@ def run_attack(args, attack):
         batch_size=args.batch_size,
         shuffle=False)
 
-    model = torchvision.models.inception_v3(pretrained=False, transform_input=False)
-    if not args.no_gpu:
-        model = model.cuda()
+    model = torchvision.models.inception_v3(pretrained=False, transform_input=False).to(device)
 
     if args.checkpoint_path is not None and os.path.isfile(args.checkpoint_path):
         checkpoint = torch.load(args.checkpoint_path)
@@ -49,9 +48,8 @@ def run_attack(args, attack):
     model.eval()
 
     for batch_idx, (input, target) in enumerate(loader):
-        if not args.no_gpu:
-            input = input.cuda()
-            target = target.cuda()
+        input = input.to(device)
+        target = target.to(device)
 
         input_adv = attack.run(model, input, target, batch_idx)
 
