@@ -34,36 +34,45 @@ class AttackIterative:
             self.loss_fn = self.loss_fn.cuda()
         self.debug = debug
 
-    def run(self, model, input, target, batch_idx=0):
-        input_var = autograd.Variable(input, requires_grad=True)
-        target_var = autograd.Variable(target)
+    def run(self, model, input, target, true_class, img_name, batch_idx=0):
+        input.requires_grad = True
         eps = self.eps
         step_alpha = self.step_alpha
 
         step = 0
         while step < self.num_steps:
-            zero_gradients(input_var)
-            output = model(input_var)
+            zero_gradients(input)
+            output = model(input)
+            '''
+            # We can use truelabel
             if not self.targeted and not step:
                 # for non-targeted, we'll move away from most likely
-                target_var.data = output.data.max(1)[1]
-            loss = self.loss_fn(output, target_var)
-            loss.backward()
+                target.data = output.data.max(1)[1]
+                print(img_name)
+                print(target)
+            '''
+            loss_true = self.loss_fn(output, true_class)
+            loss_target = self.loss_fn(output, target)
+
+            if self.targeted:
+                loss_target.backward()
+            else:
+                loss_true.backward()
 
             # normalize and scale gradient
             if self.norm == 2:
-                normed_grad = step_alpha * input_var.grad.data / l2_norm(input_var.grad.data)
+                normed_grad = step_alpha * input.grad.data / l2_norm(input.grad.data)
             elif self.norm == 1:
-                normed_grad = step_alpha * input_var.grad.data / l1_norm(input_var.grad.data)
+                normed_grad = step_alpha * input.grad.data / l1_norm(input.grad.data)
             else:
                 # infinity-norm
-                normed_grad = step_alpha * torch.sign(input_var.grad.data)
+                normed_grad = step_alpha * torch.sign(input.grad.data)
 
             # perturb current input image by normalized and scaled gradient
             if self.targeted:
-                step_adv = input_var.data - normed_grad
+                step_adv = input.data - normed_grad
             else:
-                step_adv = input_var.data + normed_grad
+                step_adv = input.data + normed_grad
 
             # calculate total adversarial perturbation from original image and clip to epsilon constraints
             total_adv = step_adv - input
@@ -84,7 +93,8 @@ class AttackIterative:
             # apply total adversarial perturbation to original image and clip to valid pixel range
             input_adv = input + total_adv
             input_adv = torch.clamp(input_adv, -1.0, 1.0)
-            input_var.data = input_adv
+            input.data = input_adv
             step += 1
+            input_adv_data = input_adv.detach()
 
-        return input_adv.permute(0, 2, 3, 1).cpu().numpy()
+        return input_adv_data.permute(0, 2, 3, 1).cpu().numpy()

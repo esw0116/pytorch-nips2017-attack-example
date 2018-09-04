@@ -11,7 +11,7 @@
 #
 
 python run_attack_iter.py \
-  --input_dir="../../Dataset/NIPSAA/images" \
+  --input_dir="../../Dataset/NIPSAA" \
   --output_dir="./outputs" \
   --max_epsilon="10" \
   --checkpoint_path="./inception_v3_google-1a9a5a14.pth"

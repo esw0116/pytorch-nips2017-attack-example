@@ -19,20 +19,12 @@ def run_attack(args, attack):
     assert args.input_dir
     device = 'cuda' if not args.no_gpu else 'cpu'
 
-    if args.targeted:
-        dataset = Dataset(
-            args.input_dir,
-            transform=default_inception_transform(args.img_size))
-    else:
-        dataset = Dataset(
-            args.input_dir,
-            target_file='',
-            transform=default_inception_transform(args.img_size))
+    dataset = Dataset(args, transform=default_inception_transform(args.img_size))
 
     loader = data.DataLoader(
         dataset,
         batch_size=args.batch_size,
-        shuffle=False)
+        shuffle=True)
 
     model = torchvision.models.inception_v3(pretrained=False, transform_input=False).to(device)
 
@@ -47,14 +39,47 @@ def run_attack(args, attack):
 
     model.eval()
 
-    for batch_idx, (input, target) in enumerate(loader):
+    for batch_idx, (input, target, true_class, img_name) in enumerate(loader):
         input = input.to(device)
         target = target.to(device)
+        true_class = true_class.to(device)
 
-        input_adv = attack.run(model, input, target, batch_idx)
+        input_adv = attack.run(model, input, target, true_class, img_name, batch_idx)
 
         start_index = args.batch_size * batch_idx
         indices = list(range(start_index, start_index + input.size(0)))
-        for filename, o in zip(dataset.filenames(indices, basename=True), input_adv):
-            output_file = os.path.join(args.output_dir, filename)
+        for filename, o in zip(dataset.filenames(indices), input_adv):
+            output_file = os.path.join(args.output_dir, os.path.basename(filename))
             imsave(output_file, (o + 1.0) * 0.5, format='png')
+
+
+def eval_attack(args, attack):
+    device = 'cuda' if not args.no_gpu else 'cpu'
+
+    dataset = Dataset(args, args.output_dir, transform=default_inception_transform(args.img_size))
+
+    loader = data.DataLoader(dataset, batch_size=1, shuffle=False)
+
+    model = torchvision.models.inception_v3(pretrained=False, transform_input=False).to(device)
+
+    if args.checkpoint_path is not None and os.path.isfile(args.checkpoint_path):
+        checkpoint = torch.load(args.checkpoint_path)
+        if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
+            model.load_state_dict(checkpoint['state_dict'])
+        else:
+            model.load_state_dict(checkpoint)
+    else:
+        print("Error: No checkpoint found at %s." % args.checkpoint_path)
+
+    model.eval()
+    correct_true = 0
+    correct_target = 0
+    for batch_idx, (input, target, true_class, img_name) in enumerate(loader):
+        input = input.to(device)
+        output = model(input)
+        prediction = torch.argmax(output, dim=1)
+        correct_true += 1 if prediction.item() == true_class.item() else 0
+        correct_target += 1 if prediction.item() == target.item() else 0
+
+    print('GT Accuracy : {:.3f}'.format(correct_true / len(loader) * 100))
+    print('Target Accuracy : {:.3f}'.format(correct_true / len(loader) * 100))

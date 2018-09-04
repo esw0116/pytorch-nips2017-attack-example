@@ -7,7 +7,7 @@ from __future__ import print_function
 
 import argparse
 from attacks import AttackIterative
-from attack import run_attack
+from attack import run_attack, eval_attack
 
 parser = argparse.ArgumentParser(description='Defence')
 parser.add_argument('--input_dir', metavar='DIR',
@@ -48,6 +48,7 @@ def main():
         debug=args.debug)
 
     run_attack(args, attack)
+    eval_attack(args, attack)
 
 if __name__ == '__main__':
     main()
