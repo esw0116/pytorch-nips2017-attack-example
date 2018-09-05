@@ -48,7 +48,7 @@ def main():
         debug=args.debug)
 
     run_attack(args, attack)
-    eval_attack(args, attack)
+    eval_attack(args)
 
 if __name__ == '__main__':
     main()

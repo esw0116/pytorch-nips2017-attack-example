@@ -7,6 +7,9 @@ from __future__ import print_function
 
 import os
 import numpy as np
+import pandas as pd
+import tqdm
+
 import torch
 import torchvision
 import torch.utils.data as data
@@ -17,6 +20,7 @@ from dataset import Dataset, default_inception_transform
 
 def run_attack(args, attack):
     assert args.input_dir
+    print('Start Attack!')
     device = 'cuda' if not args.no_gpu else 'cpu'
 
     dataset = Dataset(args, transform=default_inception_transform(args.img_size))
@@ -53,11 +57,10 @@ def run_attack(args, attack):
             imsave(output_file, (o + 1.0) * 0.5, format='png')
 
 
-def eval_attack(args, attack):
+def eval_attack(args):
+    print('Evaluation')
     device = 'cuda' if not args.no_gpu else 'cpu'
-
     dataset = Dataset(args, args.output_dir, transform=default_inception_transform(args.img_size))
-
     loader = data.DataLoader(dataset, batch_size=1, shuffle=False)
 
     model = torchvision.models.inception_v3(pretrained=False, transform_input=False).to(device)
@@ -74,12 +77,18 @@ def eval_attack(args, attack):
     model.eval()
     correct_true = 0
     correct_target = 0
-    for batch_idx, (input, target, true_class, img_name) in enumerate(loader):
+    column = ['ImageId', 'Trueclass', 'Fooledclass', 'Targetedclass']
+    df = pd.DataFrame(columns=column, index=range(len(loader)))
+    tqdm_test = tqdm.tqdm(loader, ncols=100)
+    for batch_idx, (input, target, true_class, img_name) in enumerate(tqdm_test):
         input = input.to(device)
         output = model(input)
         prediction = torch.argmax(output, dim=1)
         correct_true += 1 if prediction.item() == true_class.item() else 0
         correct_target += 1 if prediction.item() == target.item() else 0
 
+        df.iloc[batch_idx] = [img_name, true_class.item(), prediction.item(), target.item()]
+
+    df.to_csv(os.path.join(args.output_dir, 'result.csv'), sep=',')
     print('GT Accuracy : {:.3f}'.format(correct_true / len(loader) * 100))
     print('Target Accuracy : {:.3f}'.format(correct_true / len(loader) * 100))
